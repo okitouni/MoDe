@@ -140,7 +140,7 @@ class MoDeLoss():
         return LLoss 
 
     def __repr__(self):
-        str1 = "Flat Loss: frac={:.2f}, power={}, background_only={}, order={}, bins={}, sbins={}".format(self.frac,self.power, self.backonly,self.order,self.bins,self.sbins)
+        str1 = "power={}, background_only={}, order={}, bins={}, sbins={}, dynamicbins={}, normalize={}, monotonic={}, max_slope={}, memory={}".format(self.power, self.backonly,self.order,self.bins,self.sbins, self.dynamicbins, self.normalize, self.monotonic, self.max_slope, self.memory)
         str2 = repr(self.mse)
         return "\n".join([str1,str2])
 
