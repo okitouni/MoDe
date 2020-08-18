@@ -229,10 +229,10 @@ class _LegendreFitter():
         """
         s_edges = torch.linspace(0,1,sbins+1,dtype=input.dtype).to(input.device) #create s edges to integrate over
         s = (s_edges[1:] + s_edges[:-1])*0.5
-        s = expand_dims_as(s,input)
+        s = _expand_dims_as(s,input)
         ds = s_edges[1:] - s_edges[:-1]
         ctx.weights = weights.sum(axis=-1)/weights.shape[1]
-        F = Heaviside(s-input).sum(axis=-1)/input.shape[-1] # get CDF at s from input values
+        F = _Heaviside(s-input).sum(axis=-1)/input.shape[-1] # get CDF at s from input values
         integral = (ds.matmul((F-fitter(F))**fitter.power)*ctx.weights).sum(axis=0)/input.shape[0] # not exactly right with max_slope
         del F,s,ds,s_edges
 
@@ -242,9 +242,9 @@ class _LegendreFitter():
         else:
             input_appended = input
 
-        F_s_i =  expand_dims_as(input.view(-1),input) #make a flat copy of input and add dimensions for boradcasting
+        F_s_i =  _expand_dims_as(input.view(-1),input) #make a flat copy of input and add dimensions for boradcasting
         F_s_i =  F_s_i-input_appended
-        Heaviside_(F_s_i)
+        _Heaviside_(F_s_i)
         F_s_i =  F_s_i.sum(axis=-1)/F_s_i.shape[-1] #sum over bin content to get CDF
         residual = F_s_i - fitter(F_s_i)
         ctx.fitter = fitter
@@ -301,7 +301,7 @@ class _LegendreFitter():
         return grad_input, None, None, None, None
 
 
-def expand_dims(tensor, loc, ntimes=1):
+def _expand_dims(tensor, loc, ntimes=1):
     if ntimes != 1:
         if loc == 0:
             return tensor[(None,)*ntimes]
@@ -312,17 +312,17 @@ def expand_dims(tensor, loc, ntimes=1):
     else:
         return tensor.unsqueeze(loc)
 
-def expand_dims_as(t1,t2):
+def _expand_dims_as(t1,t2):
     result = t1[(...,)+(None,)*t2.dim()]
     return result
 
-def Heaviside(tensor):
+def _Heaviside(tensor):
     tensor[tensor>0] = 1
     tensor[tensor==0] = 0.5
     tensor[tensor<0] = 0
     return tensor
 
-def Heaviside_(tensor):
+def _Heaviside_(tensor):
     tensor.masked_fill_(tensor>0, 1)
     tensor.masked_fill_(tensor==0, 0.5)
     tensor.masked_fill_(tensor<0, 0)
