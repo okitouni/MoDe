@@ -1,2 +1,2 @@
 # MoDe
-Moment Decorrelation for constrained response functions (Flat, linear, quadratic, etc.)
+Moment Decorrelation for constrained response functions (flat, linear, quadratic, etc.)
