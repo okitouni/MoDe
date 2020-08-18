@@ -3,33 +3,6 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 
 
-def expand_dims(tensor, loc, ntimes=1):
-    if ntimes != 1:
-        if loc == 0:
-            return tensor[(None,)*ntimes]
-        elif loc == -1:
-            return tensor[(...,)+(None,)*ntimes]
-        else:
-            raise ValueError('Cannot insert arbitray number of dimensions in the middle of the tensor.')
-    else:
-        return tensor.unsqueeze(loc)
-
-def expand_dims_as(t1,t2):
-    result = t1[(...,)+(None,)*t2.dim()]
-    return result
-
-def Heaviside(tensor):
-    tensor[tensor>0] = 1
-    tensor[tensor==0] = 0.5
-    tensor[tensor<0] = 0
-    return tensor
-
-def Heaviside_(tensor):
-    tensor.masked_fill_(tensor>0, 1)
-    tensor.masked_fill_(tensor==0, 0.5)
-    tensor.masked_fill_(tensor<0, 0)
-    return
-
 class MoDeLoss():
     def __init__(self,bins=32,sbins=32,memory=False,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
@@ -77,7 +50,7 @@ class MoDeLoss():
         if not dynamicbins:self.boundaries=torch.linspace(-1,1,bins)
         self.m = torch.Tensor()
         self.pred_long = torch.Tensor()
-        self.fitter = LegendreFitter(order=order, power=power,lambd=lambd,max_slope=max_slope,monotonic=monotonic,eps=eps,dynamicbins=dynamicbins) 
+        self.fitter = _LegendreFitter(order=order, power=power,lambd=lambd,max_slope=max_slope,monotonic=monotonic,eps=eps,dynamicbins=dynamicbins) 
 
     def __call__(self,pred,target,x_biased,weights=None):
         """
@@ -117,7 +90,7 @@ class MoDeLoss():
             m,msorted = x_biased.sort()
             pred = pred[msorted].view(self.bins,-1)
             if weights is not None:weights = weights[msorted].view(self.bins,-1) 
-            LLoss = LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
+            LLoss = _LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
         else:
             if self.dynamicbins:
                 if self.normalize:
@@ -136,7 +109,7 @@ class MoDeLoss():
                     binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
                     weights = pad_sequence(binned,batch_first=True,padding_value=0)
             self.fitter.initialize(m=m,overwrite=True)
-            LLoss = LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
+            LLoss = _LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
         return LLoss 
 
     def __repr__(self):
@@ -154,7 +127,7 @@ class MoDeLoss():
         return self
     
 
-class LegendreFitter():
+class _LegendreFitter():
     def __init__(self,order=0,power=1,lambd=None,max_slope=None,monotonic=False,eps=1e-8,dynamicbins=True):
         """
         Object used to fit an array of using Legendre polynomials.
@@ -191,6 +164,7 @@ class LegendreFitter():
         self.a0 = None
         self.a1 = None
         self.a2 = None
+
     def __call__(self,F):
         """
         Fit F with Legendre polynomials and return the fit.
@@ -218,6 +192,7 @@ class LegendreFitter():
             else:
                 fit = fit+ self.a2*p2
         return fit
+
     def initialize(self,m,overwrite=True):
         if overwrite or self.initialized==False:
             if type(m) != torch.Tensor:
@@ -233,7 +208,9 @@ class LegendreFitter():
             self.mbins = self.m.shape[0]
             self.initialized = True
         return
-    class LegendreIntegral(Function):
+
+
+    class _LegendreIntegral(Function):
     @staticmethod
     def forward(ctx, input,weights, fitter,sbins=None,extra_input=None):
         """
@@ -274,7 +251,8 @@ class LegendreFitter():
         ctx.residual = residual
         ctx.shape = input.shape
         return integral
-        @staticmethod
+
+    @staticmethod
     def backward(ctx, grad_output):
         grad_input = None
         shape = ctx.shape
@@ -321,3 +299,31 @@ class LegendreFitter():
             grad_input  = grad_output * summation * torch.repeat_interleave(ctx.weights,shape[1]).view(shape)
 
         return grad_input, None, None, None, None
+
+
+def expand_dims(tensor, loc, ntimes=1):
+    if ntimes != 1:
+        if loc == 0:
+            return tensor[(None,)*ntimes]
+        elif loc == -1:
+            return tensor[(...,)+(None,)*ntimes]
+        else:
+            raise ValueError('Cannot insert arbitray number of dimensions in the middle of the tensor.')
+    else:
+        return tensor.unsqueeze(loc)
+
+def expand_dims_as(t1,t2):
+    result = t1[(...,)+(None,)*t2.dim()]
+    return result
+
+def Heaviside(tensor):
+    tensor[tensor>0] = 1
+    tensor[tensor==0] = 0.5
+    tensor[tensor<0] = 0
+    return tensor
+
+def Heaviside_(tensor):
+    tensor.masked_fill_(tensor>0, 1)
+    tensor.masked_fill_(tensor==0, 0.5)
+    tensor.masked_fill_(tensor<0, 0)
+    return
