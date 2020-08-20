@@ -1,8 +1,8 @@
 import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
-
-
+from torch.autograd import Function
+# deal with if weights is not none
 class MoDeLoss():
     def __init__(self,bins=32,sbins=32,memory=False,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
@@ -109,6 +109,7 @@ class MoDeLoss():
                     binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
                     weights = pad_sequence(binned,batch_first=True,padding_value=0)
             self.fitter.initialize(m=m,overwrite=True)
+
             LLoss = _LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
         return LLoss 
 
@@ -210,7 +211,7 @@ class _LegendreFitter():
         return
 
 
-    class _LegendreIntegral(Function):
+class _LegendreIntegral(Function):
     @staticmethod
     def forward(ctx, input,weights, fitter,sbins=None,extra_input=None):
         """
@@ -231,8 +232,10 @@ class _LegendreFitter():
         s = (s_edges[1:] + s_edges[:-1])*0.5
         s = _expand_dims_as(s,input)
         ds = s_edges[1:] - s_edges[:-1]
-        ctx.weights = weights.sum(axis=-1)/weights.shape[1]
-        F = _Heaviside(s-input).sum(axis=-1)/input.shape[-1] # get CDF at s from input values
+        F = s-input
+        _Heaviside_(F)
+        F = F.sum(axis=-1)/input.shape[-1] # get CDF at s from input values
+        ctx.weights = weights.sum(axis=-1).true_divide(weights.shape[1])
         integral = (ds.matmul((F-fitter(F))**fitter.power)*ctx.weights).sum(axis=0)/input.shape[0] # not exactly right with max_slope
         del F,s,ds,s_edges
 
@@ -315,12 +318,6 @@ def _expand_dims(tensor, loc, ntimes=1):
 def _expand_dims_as(t1,t2):
     result = t1[(...,)+(None,)*t2.dim()]
     return result
-
-def _Heaviside(tensor):
-    tensor[tensor>0] = 1
-    tensor[tensor==0] = 0.5
-    tensor[tensor<0] = 0
-    return tensor
 
 def _Heaviside_(tensor):
     tensor.masked_fill_(tensor>0, 1)
