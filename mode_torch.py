@@ -2,11 +2,11 @@ import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.autograd import Function
-# deal with if weights is not none
+
 class MoDeLoss():
     def __init__(self,bins=32,sbins=32,memory=False,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
-        Wrapper for MoDe  Loss. 
+        Wrapper class for MoDe  Loss. Creates a callable that calculates the MoDe loss between two tensors. 
 
         Parameters
         ----------
@@ -54,8 +54,7 @@ class MoDeLoss():
 
     def __call__(self,pred,target,x_biased,weights=None):
         """
-        Calculate the total loss (flat and MSE.)
-
+        Returns the MoDe loss of pred over x_biased. 
 
         Parameters
         ----------
@@ -109,7 +108,6 @@ class MoDeLoss():
                     binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
                     weights = pad_sequence(binned,batch_first=True,padding_value=0)
             self.fitter.initialize(m=m,overwrite=True)
-
             LLoss = _LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
         return LLoss 
 
@@ -131,14 +129,10 @@ class MoDeLoss():
 class _LegendreFitter():
     def __init__(self,order=0,power=1,lambd=None,max_slope=None,monotonic=False,eps=1e-8,dynamicbins=True):
         """
-        Object used to fit an array of using Legendre polynomials.
+        Fit an array of values F(m) using Legendre polynomials. Must be initialized using the m array.
 
         Parameters
         ----------
-        mbins :int or Array[float] (optional)
-            Array of bin edges or number of bins in m used in the fit. The fit is integrated along m.
-        m : Array[float] (optional)
-            Array of all masses. Has shape (mbins,bincontent)
         order : int, default 0
             The highest order of legendre polynomial used in the fit.
         power : int, default 1
@@ -168,8 +162,8 @@ class _LegendreFitter():
 
     def __call__(self,F):
         """
-        Fit F with Legendre polynomials and return the fit.
-
+        Fit F(m) with Legendre polynomials and return the fit. Must be initialized using tensor of m values.
+        
         Parameters
         ----------
         F : torch.Tensor
@@ -215,7 +209,7 @@ class _LegendreIntegral(Function):
     @staticmethod
     def forward(ctx, input,weights, fitter,sbins=None,extra_input=None):
         """
-        Calculate the Flat loss of input integral{Norm(F(s)-F_flat(s))} integrating over sbins.
+        Calculate the MoDe loss of input: integral{Norm(F(s)-F_fit(s))} integrating over s. F(s) = CDF_input(s)
 
         Parameters
         ----------
@@ -226,7 +220,7 @@ class _LegendreIntegral(Function):
         sbins : int
             Number of s bins to use in the integral.
         extra_input : torch.Tensor
-            Additional scores from previous batches if memory is True.
+            Additional scores from previous batches if memory=True is used.
         """
         s_edges = torch.linspace(0,1,sbins+1,dtype=input.dtype).to(input.device) #create s edges to integrate over
         s = (s_edges[1:] + s_edges[:-1])*0.5
@@ -303,17 +297,6 @@ class _LegendreIntegral(Function):
 
         return grad_input, None, None, None, None
 
-
-def _expand_dims(tensor, loc, ntimes=1):
-    if ntimes != 1:
-        if loc == 0:
-            return tensor[(None,)*ntimes]
-        elif loc == -1:
-            return tensor[(...,)+(None,)*ntimes]
-        else:
-            raise ValueError('Cannot insert arbitray number of dimensions in the middle of the tensor.')
-    else:
-        return tensor.unsqueeze(loc)
 
 def _expand_dims_as(t1,t2):
     result = t1[(...,)+(None,)*t2.dim()]

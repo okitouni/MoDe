@@ -6,7 +6,7 @@ from tensorflow.python.ops.math_ops import bucketize
 class MoDeLoss():
     def __init__(self,bins=32,sbins=32,memory=False,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
-        Wrapper for MoDe  Loss.
+        Wrapper class for MoDe  Loss. Creates a callable that calculates the MoDe loss between two tensors.
 
         Parameters
         ----------
@@ -54,8 +54,7 @@ class MoDeLoss():
 
     def __call__(self,pred,target,x_biased,weights=None):
         """
-        Calculate the total loss (flat and MSE.)
-
+        Returns the MoDe loss of pred over x_biased.
 
         Parameters
         ----------
@@ -115,8 +114,22 @@ class MoDeLoss():
             LLoss = _LegendreIntegral(pred,weights, self.fitter, self.sbins)
         return LLoss
 
-    view = lambda x,shape: tf.reshape(x,shape)
+view = lambda x,shape: tf.reshape(x,shape)
 def _LegendreIntegral(input,weights=None, fitter=None,sbins=2,extra_input=None):
+    """
+    Calculate the MoDe loss of input: integral{Norm(F(s)-F_fit(s))} integrating over s. F(s) = CDF_input(s)
+
+    Parameters
+    ----------
+    input : Tensor
+        Scores with shape (mbins,bincontent) where mbins * bincontent = N (or the batch size.)
+    fitter : LegendreFitter
+        Fitter object used to calculate F_flat(s)
+    sbins : int
+        Number of s bins to use in the integral.
+    extra_input : Tensor
+        Additional scores from previous batches if memory=True is used.
+    """
     @tf.custom_gradient
     def MoDeOP(input):
         s_edges = tf.linspace(0.,1.,sbins+1)#create s edges to integrate over
@@ -134,7 +147,6 @@ def _LegendreIntegral(input,weights=None, fitter=None,sbins=2,extra_input=None):
             input_appended = extra_input
         else:
             input_appended = input
-
 
         F_s_i =  _expand_dims_as(view(input,-1),input) #make a flat copy of input and add dimensions for boradcasting
         F_s_i =  F_s_i-input_appended
@@ -190,14 +202,10 @@ def _LegendreIntegral(input,weights=None, fitter=None,sbins=2,extra_input=None):
 class _LegendreFitter():
     def __init__(self,order=0,power=1,lambd=None,max_slope=None,monotonic=False,eps=1e-8,dynamicbins=True):
         """
-        Object used to fit an array of using Legendre polynomials.
+        Fit an array of values F(m) using Legendre polynomials. Must be initialized using the m array.
 
         Parameters
         ----------
-        mbins :int or Array[float] (optional)
-            Array of bin edges or number of bins in m used in the fit. The fit is integrated along m.
-        m : Array[float] (optional)
-            Array of all masses. Has shape (mbins,bincontent)
         order : int, default 0
             The highest order of legendre polynomial used in the fit.
         power : int, default 1
@@ -227,11 +235,11 @@ class _LegendreFitter():
 
     def __call__(self,F):
         """
-        Fit F with Legendre polynomials and return the fit.
+        Fit F(m) with Legendre polynomials and return the fit. Must be initialized using tensor of m values.
 
         Parameters
         ----------
-        F : torch.Tensor
+        F : Tensor
             Tensor of CDFs F_m(s) has shape (N,mbins) where N is the number of scores
         """
         if self.initialized == False:
