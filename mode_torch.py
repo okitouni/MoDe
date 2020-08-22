@@ -17,7 +17,7 @@ class MoDeLoss():
         memory : bool, default True
             If True, integrate over biased feature locally i.e. on a per batch basis. Otherwise save data (biased feature and scores) from previous batches and perform a global MoDe claculation.  
         background_only : bool, default True
-            If True, only apply the loss to the response of background events (label 1.) Otherwise, constrain the response for both classes at the same time.
+            If True, only apply the loss to the response of background events (label 1.) Otherwise, constrain the response for the whole tensor not just the subset labaled 1 (i.e. both classes at the same time if two classes are provided.)
         power : int, default 2
             Power used to calculate the flat part of the loss. E.g. L2: LegendreLoss=mean((F(s)-F_flat(s))**2)
         order : int={0,1,2}, default 0
