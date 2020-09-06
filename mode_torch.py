@@ -4,7 +4,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.autograd import Function
 
 class MoDeLoss():
-    def __init__(self,bins=32,sbins=32,memory=False,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
+    def __init__(self,bins=32,sbins=32,memory=False,background_label=0,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
         Wrapper class for MoDe  Loss. Creates a callable that calculates the MoDe loss between two tensors. 
 
@@ -68,7 +68,7 @@ class MoDeLoss():
             Tensor of weights for each sample. Must have the same shape as pred.
         """
         if self.backonly:
-            mask = target==1
+            mask = target==background_label
             x_biased = x_biased[mask]
             pred = pred[mask]
             target = target[mask]
@@ -89,6 +89,7 @@ class MoDeLoss():
             m,msorted = x_biased.sort()
             pred = pred[msorted].view(self.bins,-1)
             if weights is not None:weights = weights[msorted].view(self.bins,-1) 
+            weights = weights or torch.ones_like(pred)
             LLoss = _LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
         else:
             if self.dynamicbins:
@@ -108,6 +109,7 @@ class MoDeLoss():
                     binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
                     weights = pad_sequence(binned,batch_first=True,padding_value=0)
             self.fitter.initialize(m=m,overwrite=True)
+            weights = weights or torch.ones_like(pred)
             LLoss = _LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
         return LLoss 
 
@@ -238,7 +240,6 @@ class _LegendreIntegral(Function):
             input_appended = extra_input
         else:
             input_appended = input
-
         F_s_i =  _expand_dims_as(input.view(-1),input) #make a flat copy of input and add dimensions for boradcasting
         F_s_i =  F_s_i-input_appended
         _Heaviside_(F_s_i)

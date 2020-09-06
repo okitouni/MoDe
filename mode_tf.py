@@ -4,7 +4,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.python.ops.math_ops import bucketize
 
 class MoDeLoss():
-    def __init__(self,bins=32,sbins=32,memory=False,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
+    def __init__(self,bins=32,sbins=32,memory=False,background_label=0,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
         Wrapper class for MoDe  Loss. Creates a callable that calculates the MoDe loss between two tensors.
 
@@ -68,7 +68,7 @@ class MoDeLoss():
             Tensor of weights for each sample. Must have the same shape as pred.
         """
         if self.backonly:
-            mask = target==1
+            mask = target==background_label
             x_biased = x_biased[mask]
             pred = pred[mask]
             target = target[mask]
@@ -89,6 +89,7 @@ class MoDeLoss():
             m,msorted = x_biased.sort()
             pred = pred[msorted].view(self.bins,-1)
             if weights is not None:weights = weights[msorted].view(self.bins,-1)
+            weights = weights or tf.ones_like(pred)
             LLoss = _LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
         else:
             if self.dynamicbins:
@@ -109,8 +110,7 @@ class MoDeLoss():
                     binned = [weights[bin_index==index] for index in tf.unique(bin_index).y]
                     weights = tf.keras.preprocessing.sequence.pad_sequences(binned,padding='post',value=0)
             self.fitter.initialize(m=m,overwrite=True)
-            if weights is None:
-                weights = tf.ones_like(pred)
+            weights = weights or tf.ones_like(pred)
             LLoss = _LegendreIntegral(pred,weights, self.fitter, self.sbins)
         return LLoss
 
