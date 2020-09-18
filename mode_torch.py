@@ -98,17 +98,6 @@ class MoDeLoss():
                 m,msorted = x_biased.sort()
                 m = m.view(self.bins,-1)
                 pred = pred[msorted].view(self.bins,-1)
-<<<<<<< HEAD
-            else: #still need to fix nbin normalization in dervatives
-                bin_index = torch.bucketize(x_biased,self.boundaries)     
-                m = torch.index_select(self.boundaries,0,torch.unique(bin_index))
-                m = torch.cat([torch.Tensor([-1]).to(m.device),m])
-                binned = [pred[bin_index==index] for index in torch.unique(bin_index)]
-                pred = pad_sequence(binned,batch_first=True,padding_value=0)
-                if weights is not None:
-                    binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
-                    weights = pad_sequence(binned,batch_first=True,padding_value=0)
-=======
                 if weights is not None:weights = weights[msorted].view(self.bins,-1)
 #            else: #still need to fix nbin normalization in dervatives
 #                bin_index = torch.bucketize(x_biased,self.boundaries)     
@@ -119,7 +108,6 @@ class MoDeLoss():
 #                if weights is not None:
 #                    binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
 #                    weights = pad_sequence(binned,batch_first=True,padding_value=0)
->>>>>>> 72052291fbc5c4e6b9e2eb6779afcb8618155b8d
             self.fitter.initialize(m=m,overwrite=True)
             LLoss = _LegendreIntegral.apply(pred,self.fitter,weights,self.sbins)
         return LLoss 
