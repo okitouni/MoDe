@@ -92,14 +92,13 @@ class MoDeLoss():
             if weights is not None:weights = weights[msorted].view(self.bins,-1)
             LLoss = _LegendreIntegral.apply(pred,self.fitter,weights,self.sbins,pred_long)
         else:
-            if self.dynamicbins:
-                if self.normalize:
-                    x_biased = 2*(x_biased - x_biased.min())/(x_biased.max()-x_biased.min()) -1
-                m,msorted = x_biased.sort()
-                m = m.view(self.bins,-1)
-                pred = pred[msorted].view(self.bins,-1)
-                if weights is not None:weights = weights[msorted].view(self.bins,-1)
-#            else: #still need to fix nbin normalization in dervatives
+            if self.normalize:
+                x_biased = 2*(x_biased - x_biased.min())/(x_biased.max()-x_biased.min()) -1
+            m,msorted = x_biased.sort()
+            m = m.view(self.bins,-1)
+            pred = pred[msorted].view(self.bins,-1)
+            if weights is not None:weights = weights[msorted].view(self.bins,-1)
+#            if not self.dynamicbins: #still need to fix nbin normalization in dervatives
 #                bin_index = torch.bucketize(x_biased,self.boundaries)     
 #                m = torch.index_select(self.boundaries,0,torch.unique(bin_index))
 #                m = torch.cat([torch.Tensor([-1]).to(m.device),m])
