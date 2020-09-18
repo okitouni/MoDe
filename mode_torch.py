@@ -101,7 +101,6 @@ class MoDeLoss():
                 m,msorted = x_biased.sort()
                 m = m.view(self.bins,-1)
                 pred = pred[msorted].view(self.bins,-1)
-                if weights is not None:weights = weights[msorted].view(self.bins,-1)
             else: #still need to fix nbin normalization in dervatives
                 bin_index = torch.bucketize(x_biased,self.boundaries)     
                 m = torch.index_select(self.boundaries,0,torch.unique(bin_index))
