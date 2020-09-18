@@ -89,11 +89,8 @@ class MoDeLoss():
             self.fitter.initialize(m=m.view(self.bins,-1),overwrite=True)
             m,msorted = x_biased.sort()
             pred = pred[msorted].view(self.bins,-1)
-            if weights is not None:
-                weights = weights[msorted].view(self.bins,-1) 
-            else:
-                weights = torch.ones_like(pred,device=pred.device).view(self.bins,-1) 
-            LLoss = _LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
+            if weights is not None:weights = weights[msorted].view(self.bins,-1)
+            LLoss = _LegendreIntegral.apply(pred,self.fitter,weights,self.sbins,pred_long)
         else:
             if self.dynamicbins:
                 if self.normalize:
@@ -102,21 +99,17 @@ class MoDeLoss():
                 m = m.view(self.bins,-1)
                 pred = pred[msorted].view(self.bins,-1)
                 if weights is not None:weights = weights[msorted].view(self.bins,-1)
-            else: #still need to fix nbin normalization in dervatives
-                bin_index = torch.bucketize(x_biased,self.boundaries)     
-                m = torch.index_select(self.boundaries,0,torch.unique(bin_index))
-                m = torch.cat([torch.Tensor([-1]).to(m.device),m])
-                binned = [pred[bin_index==index] for index in torch.unique(bin_index)]
-                pred = pad_sequence(binned,batch_first=True,padding_value=0)
-                if weights is not None:
-                    binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
-                    weights = pad_sequence(binned,batch_first=True,padding_value=0)
+#            else: #still need to fix nbin normalization in dervatives
+#                bin_index = torch.bucketize(x_biased,self.boundaries)     
+#                m = torch.index_select(self.boundaries,0,torch.unique(bin_index))
+#                m = torch.cat([torch.Tensor([-1]).to(m.device),m])
+#                binned = [pred[bin_index==index] for index in torch.unique(bin_index)]
+#                pred = pad_sequence(binned,batch_first=True,padding_value=0)
+#                if weights is not None:
+#                    binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
+#                    weights = pad_sequence(binned,batch_first=True,padding_value=0)
             self.fitter.initialize(m=m,overwrite=True)
-            if weights is not None:
-                weights = weights[msorted].view(self.bins,-1) 
-            else:
-                weights = torch.ones_like(pred,device=pred.device).view(self.bins,-1) 
-            LLoss = _LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
+            LLoss = _LegendreIntegral.apply(pred,self.fitter,weights,self.sbins)
         return LLoss 
 
     def __repr__(self):
@@ -215,7 +208,7 @@ class _LegendreFitter():
 
 class _LegendreIntegral(Function):
     @staticmethod
-    def forward(ctx, input,weights, fitter,sbins=None,extra_input=None):
+    def forward(ctx, input,fitter,weights=None,sbins=None,extra_input=None):
         """
         Calculate the MoDe loss of input: integral{Norm(F(s)-F_fit(s))} integrating over s. F(s) = CDF_input(s)
 
@@ -237,8 +230,12 @@ class _LegendreIntegral(Function):
         F = s-input
         _Heaviside_(F)
         F = F.sum(axis=-1)/input.shape[-1] # get CDF at s from input values
-        ctx.weights = weights.sum(axis=-1).true_divide(weights.shape[1])
-        integral = (ds.matmul((F-fitter(F))**fitter.power)*ctx.weights).sum(axis=0)/input.shape[0] # not exactly right with max_slope
+        if weights is not None:
+            weights = weights.sum(axis=-1).true_divide(weights.shape[1])
+            ctx.weights = torch.repeat_interleave(weights,input.shape[1]).view(input.shape)
+        else:
+            weights,ctx.weights=1.,1.
+        integral = (ds.matmul((F-fitter(F))**fitter.power)*weights).sum(axis=0)/input.shape[0] # not exactly right with max_slope
         del F,s,ds,s_edges
 
         # Stuff for backward
@@ -300,7 +297,7 @@ class _LegendreIntegral(Function):
                 summation += -lambd*2/np.prod(shape) *\
                 3/2* ctx.fitter.a1.view(shape)*(m*dm).view(-1,1)
 
-            grad_input  = grad_output * summation * torch.repeat_interleave(ctx.weights,shape[1]).view(shape)
+            grad_input  = grad_output * summation * ctx.weights
 
         return grad_input, None, None, None, None
 
