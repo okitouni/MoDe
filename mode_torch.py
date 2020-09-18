@@ -38,6 +38,7 @@ class MoDeLoss():
         self.bins = bins
         self.sbins = sbins
         self.backonly = background_only
+        self.background_label = background_label
         self.power = power
         self.order = order
         self.memory = memory
@@ -68,7 +69,7 @@ class MoDeLoss():
             Tensor of weights for each sample. Must have the same shape as pred.
         """
         if self.backonly:
-            mask = target==background_label
+            mask = target==self.background_label
             x_biased = x_biased[mask]
             pred = pred[mask]
             target = target[mask]
@@ -88,8 +89,10 @@ class MoDeLoss():
             self.fitter.initialize(m=m.view(self.bins,-1),overwrite=True)
             m,msorted = x_biased.sort()
             pred = pred[msorted].view(self.bins,-1)
-            if weights is not None:weights = weights[msorted].view(self.bins,-1) 
-            weights = weights or torch.ones_like(pred)
+            if weights is not None:
+                weights = weights[msorted].view(self.bins,-1) 
+            else:
+                weights = torch.ones_like(pred,device=pred.device).view(self.bins,-1) 
             LLoss = _LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
         else:
             if self.dynamicbins:
@@ -109,7 +112,10 @@ class MoDeLoss():
                     binned = [weights[bin_index==index] for index in torch.unique(bin_index)]
                     weights = pad_sequence(binned,batch_first=True,padding_value=0)
             self.fitter.initialize(m=m,overwrite=True)
-            weights = weights or torch.ones_like(pred)
+            if weights is not None:
+                weights = weights[msorted].view(self.bins,-1) 
+            else:
+                weights = torch.ones_like(pred,device=pred.device).view(self.bins,-1) 
             LLoss = _LegendreIntegral.apply(pred,weights, self.fitter, self.sbins)
         return LLoss 
 
