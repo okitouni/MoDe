@@ -25,7 +25,7 @@ class MoDeLoss():
         lambd : float, optional
             Amount of penalization to high slopes.  
         max_slope : float, optional 
-            Specify a maximum slope in the decomposition. If None, the slope is unconstrained.  
+        Specify a maximum slope in the decomposition as a fraction of the minimal slope that corresponds to 0 efficiency near some edge. If max_slope<1 then the response will have nonzero efficiency everywhere, otherwise the slope can ve large enough that efficiency is 0 near one edge. If None, the slope is unconstrained.  
         monotonic : bool, default True
             If True, forces the response to be monotonic for quadratic fits.  
         eps : float, default 1e-4 
@@ -159,7 +159,7 @@ class _LegendreFitter():
         self.a0 = None
         self.a1 = None
         self.a2 = None
-
+        self._tanh1=np.tanh(1)
     def __call__(self,F):
         """
         Fit F(m) with Legendre polynomials and return the fit. Must be initialized using tensor of m values.
@@ -176,7 +176,7 @@ class _LegendreFitter():
         if self.order>0:
             self.a1 = 3/2 * (F*self.m*self.dm).sum(axis=-1).view(-1,1)
             if self.max_slope is not None:
-                fit = fit + self.max_slope*torch.tanh(self.a1/self.max_slope)*self.m
+                fit = fit + self.max_slope*self.a0*torch.tanh(self.a1/(self.max_slope*self.a0+self.eps))*self.m
             else:
                 fit = fit + self.a1*self.m
         if self.order>1:
