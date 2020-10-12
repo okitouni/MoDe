@@ -38,6 +38,7 @@ class MoDeLoss():
         self.bins = bins
         self.sbins = sbins
         self.backonly = background_only
+        self.background_label = background_label
         self.power = power
         self.order = order
         self.memory = memory
@@ -68,7 +69,7 @@ class MoDeLoss():
             Tensor of weights for each sample. Must have the same shape as pred.
         """
         if self.backonly:
-            mask = target==background_label
+            mask = target==self.background_label
             x_biased = x_biased[mask]
             pred = pred[mask]
             target = target[mask]
@@ -79,42 +80,28 @@ class MoDeLoss():
                 pred = pred[:-mod]
                 target = target[:-mod]
                 if weights is not None: weights = weights[:-mod] #Not used currently
-        if self.memory:
-            self.m = tf.concat([self.m,x_biased],axis=0)
-            self.pred_long = tf.concat([self.pred_long,pred],axis=0)
-            self.pred_long = tf.stop_gradient(self.pred_long)
-            m,msorted = self.m.sort()
-            pred_long = self.pred_long[msorted].view(self.bins,-1)
-            self.fitter.initialize(m=m.view(self.bins,-1),overwrite=True)
-            m,msorted = x_biased.sort()
-            pred = pred[msorted].view(self.bins,-1)
-            if weights is not None:weights = weights[msorted].view(self.bins,-1)
-            weights = weights or tf.ones_like(pred)
-            LLoss = _LegendreIntegral.apply(pred, weights, self.fitter, self.sbins,pred_long)
-        else:
-            if self.dynamicbins:
-                if self.normalize:
-                    x_biased = 2*(x_biased - tf.reduce_min(x_biased))/(tf.reduce_max(x_biased)-tf.reduce_min(x_biased)) -1
-                msorted = tf.argsort(x_biased)
-                m = tf.gather(x_biased,msorted,)
-                m = view(m,(self.bins,-1))
-                pred = view(tf.gather(pred,msorted),(self.bins,-1))
-                if weights is not None:weights = view(tf.gather(weights,msorted),(self.bins,-1))
-            else: #still need to fix nbin normalization in dervatives
-                bin_index = tf.feature_column.bucketized_column(x_biased,self.boundaries)
-                m = tf.gather(self.boundaries,tf.unique(bin_index)[0],batch_dims=0)
-                m = tf.concat([tf.constant([-1]),m])
-                binned = [pred[bin_index==index] for index in tf.unique(bin_index)[0]]
-                pred = pad_sequences(binned,padding='post',value=0)
-                if weights is not None:
-                    binned = [weights[bin_index==index] for index in tf.unique(bin_index).y]
-                    weights = tf.keras.preprocessing.sequence.pad_sequences(binned,padding='post',value=0)
-            self.fitter.initialize(m=m,overwrite=True)
-            weights = weights or tf.ones_like(pred)
-            LLoss = _LegendreIntegral(pred,weights, self.fitter, self.sbins)
+        if self.dynamicbins:
+            if self.normalize:
+                x_biased = 2*(x_biased - tf.reduce_min(x_biased))/(tf.reduce_max(x_biased)-tf.reduce_min(x_biased)) -1
+            msorted = tf.argsort(x_biased)
+            m = tf.gather(x_biased,msorted,)
+            m = view(m,(self.bins,-1))
+            pred = view(tf.gather(pred,msorted),(self.bins,-1))
+            if weights is not None:weights = view(tf.gather(weights,msorted),(self.bins,-1))
+        else: #still need to fix nbin normalization in dervatives
+            bin_index = tf.feature_column.bucketized_column(x_biased,self.boundaries)
+            m = tf.gather(self.boundaries,tf.unique(bin_index)[0],batch_dims=0)
+            m = tf.concat([tf.constant([-1]),m])
+            binned = [pred[bin_index==index] for index in tf.unique(bin_index)[0]]
+            pred = pad_sequences(binned,padding='post',value=0)
+            if weights is not None:
+                binned = [weights[bin_index==index] for index in tf.unique(bin_index).y]
+                weights = tf.keras.preprocessing.sequence.pad_sequences(binned,padding='post',value=0)
+        self.fitter.initialize(m=m,overwrite=True)
+        weights = weights or tf.ones_like(pred)
+        LLoss = _LegendreIntegral(pred,weights, self.fitter, self.sbins)
         return LLoss
 
-view = lambda x,shape: tf.reshape(x,shape)
 def _LegendreIntegral(input,weights=None, fitter=None,sbins=2,extra_input=None):
     """
     Calculate the MoDe loss of input: integral{Norm(F(s)-F_fit(s))} integrating over s. F(s) = CDF_input(s)
@@ -165,33 +152,37 @@ def _LegendreIntegral(input,weights=None, fitter=None,sbins=2,extra_input=None):
             m = fitter.m
             a0 = view(fitter.a0,shape)
             dF = view(residual[tf.repeat(tf.eye(shape[0],dtype=bool),shape[1],axis=0)],shape)
-            dF0 = -.5 * view(tf.reduce_sum(residual,axis=-1),shape) * view(dm,(-1,1))
+            dF0 = view(tf.reduce_sum(residual,axis=-1),shape) * -.5* view(dm,(-1,1))
             summation = dF + dF0
             if order >0:
-                a1 = fitter.a1.view(shape)
+                a1 = view(fitter.a1,shape)
                 if max_slope is None:
-                    dF1  = -1.5 * view(tf.reduce_sum((residual*m),axis=-1),shape) * view(dm*m,(-1,1))
+                    dF1  = view(tf.reduce_sum((residual*m),axis=-1),shape) * -1.5*view(dm*m,(-1,1))
                     summation += dF1
                 else:
-                    dF1   = -1.5 * view(tf.reduce_sum((residual*m),axis=-1),shape) * view(dm*m,(-1,1))*\
-                             (1/tf.cosh(a1/max_slope))**2
+                    a0 = max_slope*a0 
+                    dF1   = view(tf.reduce_sum((residual*m),axis=-1),shape) *\
+                            (-1.5* view(dm*m,(-1,1))*(1/tf.cosh(a1/(a0+eps)))**2+\
+                            -a1/(a0+eps)*(1/tf.cosh(a1/(a0+eps)))**2*-.5* view(dm,(-1,1))*max_slope+\
+                             tf.tanh(a1/(a0+eps))*-.5* view(dm,(-1,1))*max_slope)
                     summation += dF1
             if order>1:
                 a2 = view(fitter.a2,shape)
                 if not monotonic:
-                    dF2   = -2.5* view(tf.reduce_sum(residual*.5*(3*m**2-1),axis=-1),shape) *\
-                            view(dm*0.5*(3*m**2-1),(-1,1))
+                    dF2   = view(tf.reduce_sum(residual*.5*(3*m**2-1),axis=-1),shape) *\
+                            -2.5* view(dm*0.5*(3*m**2-1),(-1,1))
                     summation += dF2
                 else:
-                    dF2   = -2.5* view(tf.reduce_sum(residual*.5*(3*m**2-1),axis=-1),shape) *\
-                            view(dm*0.5*(3*m**2-1),(-1,1)) *\
-                            (1/tf.cosh(a2/(a1+eps))**2*view(-2.5*dm*0.5*(3*m**2-1),(-1,1))+1.5*a2/(a1+eps)*view(dm*m,(-1,1)) +\
-                            -1.5*view(dm*m,(-1,1))*(tf.tanh(a2/(a1+eps))))
+                    a1    = a1/3.
+                    dF2   = view(tf.reduce_sum(residual*.5*(3*m**2-1),axis=-1),shape) *\
+                            (1/tf.cosh(a2/(a1+eps))**2*view(-2.5*dm*0.5*(3*m**2-1),(-1,1))+\
++                            (1/tf.cosh(a2/(a1+eps))**2* -a2/(a1+eps)*-1.5*view(dm*m,(-1,1))/3. +\
++                            -1.5*view(dm*m,(-1,1))/3.*(tf.tanh(a2/(a1+eps)))))
                     summation += dF2
             summation *= (-power)/np.prod(shape)
             if lambd is not None:
                 summation += -lambd*2/np.prod(shape) *\
-                3/2* fitter.a1.view(shape)*view(dm*m,(-1,1))
+                3/2* view(fitter.a1,shape)*view(dm*m,(-1,1))
 
             grad_input  = grad_output * summation * view(tf.repeat(w,shape[1]),shape)
 
@@ -254,9 +245,9 @@ class _LegendreFitter():
                 fit = fit + self.a1*self.m
         if self.order>1:
             p2 = (3*self.m**2-1)*0.5
-            self.a2 = 5/2 * view((F*p2*self.dm).sum(axis=-1),(-1,1))
+            self.a2 = 5/2 * view(tf.reduce_sum(F*p2*self.dm,axis=-1),(-1,1))
             if self.monotonic:
-                fit = fit + self.a1*tf.tanh(self.a2/(self.a1+self.eps))*p2
+                fit = fit + self.a1/3.*tf.tanh(self.a2/(self.a1/3.+self.eps))*p2
             else:
                 fit = fit+ self.a2*p2
         return fit
@@ -277,6 +268,7 @@ class _LegendreFitter():
             self.initialized = True
         return
 
+view = lambda x,shape: tf.reshape(x,shape)
 def _Heaviside(tensor):
     tensor = (tf.sign(tensor)+1.)*0.5
     return tensor

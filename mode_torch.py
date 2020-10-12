@@ -4,7 +4,7 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.autograd import Function
 
 class MoDeLoss():
-    def __init__(self,bins=32,sbins=32,memory=False,background_label=0,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
+    def __init__(self,bins=32,sbins=32,memory=False,background_label=0,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True,sign_func="tanh"):
         """
         Wrapper class for MoDe  Loss. Creates a callable that calculates the MoDe loss between two tensors. 
 
@@ -159,7 +159,6 @@ class _LegendreFitter():
         self.a0 = None
         self.a1 = None
         self.a2 = None
-        self._tanh1=np.tanh(1)
     def __call__(self,F):
         """
         Fit F(m) with Legendre polynomials and return the fit. Must be initialized using tensor of m values.
@@ -183,7 +182,7 @@ class _LegendreFitter():
             p2 = (3*self.m**2-1)*0.5
             self.a2 = 5/2 * (F*p2*self.dm).sum(axis=-1).view(-1,1)
             if self.monotonic:
-                fit = fit + self.a1*torch.tanh(self.a2/(self.a1+self.eps))*p2
+                fit = fit + self.a1/3.*torch.tanh(self.a2/(self.a1/3.+self.eps))*p2
             else:
                 fit = fit+ self.a2*p2
         return fit
@@ -267,28 +266,33 @@ class _LegendreIntegral(Function):
         a0 = ctx.fitter.a0.view(shape)
         if ctx.needs_input_grad[0]:
             dF = ctx.residual[torch.eye(shape[0],dtype=bool).repeat_interleave(shape[1],axis=0)].view(shape)
-            dF0 = -.5 * ctx.residual.sum(axis=-1).view(shape) * dm.view(-1,1)
+            dF0 =  ctx.residual.sum(axis=-1).view(shape) *-.5* dm.view(-1,1)
             summation = dF + dF0
             if order >0:
                 a1 = ctx.fitter.a1.view(shape)
                 if max_slope is None:
-                    dF1  = -1.5 * (ctx.residual*m).sum(axis=-1).view(shape) * (dm*m).view(-1,1)
+                    dF1  = (ctx.residual*m).sum(axis=-1).view(shape) *-1.5* (dm*m).view(-1,1)
                     summation += dF1
                 else:
-                    dF1   = -1.5 * (ctx.residual*m).sum(axis=-1).view(shape) * (dm*m).view(-1,1) *\
-                             (1/torch.cosh(a1/max_slope))**2
+                    a0 = max_slope*a0
+                    dF1   =  (ctx.residual*m).sum(axis=-1).view(shape) *\
+                                (-1.5* (dm*m).view(-1,1) *(1/torch.cosh(a1/(a0+eps)))**2+\
+                                -a1/(a0+eps)*(1/torch.cosh(a1/(a0+eps)))**2*-.5* dm.view(-1,1)*max_slope+\
+                                torch.tanh(a1/(a0+eps))*-.5* dm.view(-1,1)*max_slope)
+                                
                     summation += dF1
             if order>1:
                 a2 = ctx.fitter.a2.view(shape)
                 if not monotonic:
-                    dF2   = -2.5* (ctx.residual*.5*(3*m**2-1)).sum(axis=-1).view(shape) *\
-                            (dm*0.5*(3*m**2-1)).view(-1,1)
+                    dF2   = (ctx.residual*.5*(3*m**2-1)).sum(axis=-1).view(shape) *\
+                            -2.5*(dm*0.5*(3*m**2-1)).view(-1,1) #dc_2/ds is this term 
                     summation += dF2
                 else:
+                    a1 = a1/3.
                     dF2   = (ctx.residual*.5*(3*m**2-1)).sum(axis=-1).view(shape) *\
-                            (dm*0.5*(3*m**2-1)).view(-1,1) *\
-                            (1/torch.cosh(a2/(a1+eps))**2*(-2.5*dm*0.5*(3*m**2-1)).view(-1,1)+1.5*a2/(a1+eps)*(dm*m).view(-1,1) +\
-                            -1.5*(dm*m).view(-1,1)*(torch.tanh(a2/(a1+eps))))
+                            (1/torch.cosh(a2/(a1+eps))**2*(-2.5*dm*0.5*(3*m**2-1)).view(-1,1)+\
+                            (1/torch.cosh(a2/(a1+eps))**2* -a2/(a1+eps)*-1.5*(dm*m).view(-1,1)/3. +\
+                            -1.5*(dm*m).view(-1,1)/3.*(torch.tanh(a2/(a1+eps)))))
                     summation += dF2
 
             summation *= (-power)/np.prod(shape)
@@ -299,7 +303,6 @@ class _LegendreIntegral(Function):
             grad_input  = grad_output * summation * ctx.weights
 
         return grad_input, None, None, None, None
-
 
 def _expand_dims_as(t1,t2):
     result = t1[(...,)+(None,)*t2.dim()]
