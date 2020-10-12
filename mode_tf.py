@@ -176,8 +176,8 @@ def _LegendreIntegral(input,weights=None, fitter=None,sbins=2,extra_input=None):
                     a1    = a1/3.
                     dF2   = view(tf.reduce_sum(residual*.5*(3*m**2-1),axis=-1),shape) *\
                             (1/tf.cosh(a2/(a1+eps))**2*view(-2.5*dm*0.5*(3*m**2-1),(-1,1))+\
-+                            (1/tf.cosh(a2/(a1+eps))**2* -a2/(a1+eps)*-1.5*view(dm*m,(-1,1))/3. +\
-+                            -1.5*view(dm*m,(-1,1))/3.*(tf.tanh(a2/(a1+eps)))))
+                            (1/tf.cosh(a2/(a1+eps))**2* -a2/(a1+eps)*-1.5*view(dm*m,(-1,1))/3. +\
+                            -1.5*view(dm*m,(-1,1))/3.*(tf.tanh(a2/(a1+eps)))))
                     summation += dF2
             summation *= (-power)/np.prod(shape)
             if lambd is not None:
