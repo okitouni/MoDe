@@ -24,3 +24,20 @@ loss = lambda pred,target,x_biased,weights: lambd * flatness_loss(pred,target,x_
 ```
 
 For TensorFlow, replace `modeloss.pytorch` above with `modeloss.tf`.
+## Example 
+This is a toy example in which the signal (samples with label 1) is localized near the value 0.2 of the protected attribute *m*. While backgrounds (samples with label 0) are uniform in this feature, we note that this bias is introduced into any naive classifer. Indeed, we see that an unconstrained classifier (in the sense that it has no additional fairness regularization) has a large false positive rate for backgrounds near *m* = 0.2. Here we show how different MoDe regularizations (MoDe\[n\]) mitigate this bias by flattening the false positive rate as a function of the protected attribute *m*. 
+
+
+<p align="center">
+  <img width="100%" src="https://raw.githubusercontent.com/okitouni/MoDe/master/docs/source/_plots/roc.svg?sanitize=true" />
+</p>
+
+
+
+**Left**: The false positive rate versus mass for various models at true positive rate (TPR) 80, 50, 20% (each set of 3 identically colored and stylized lines correspond to the same model but with selection thresholds chosen to achieve the 3 desired TPRs). The bottom panel
+shows that MoDe\[1\] and MoDe\[2\] completely overlap with the m-agnostic model for this simple
+example, which is expected because the optimal classifier here has linear dependence on mass (see paper). **Right**: ROC curves for MoDe\[0\], MoDe\[1\], and MoDe\[2\] compared to the *m*-agnostic
+model and a model with unconstrained mass dependence. As in the left panel, we see that `MoDe[1]`,
+MoDe\[2\], and the *m*-agnostic ROC curves are nearly identical because the optimal classifier has
+linear mass dependence in this simple example. 
+For more details see [2010.09745](https://arxiv.org/pdf/2010.09745.pdf).
