@@ -5,6 +5,5 @@ Moment Decorrelation (MoDe) is a tool that can enforce decorrelation between som
 
 For more details please see: https://arxiv.org/abs/2010.09745
 """
-
 __version__ = "0.1.0"
 __author__ = 'Ouail Kitouni'

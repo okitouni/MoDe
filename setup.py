@@ -10,10 +10,6 @@ setup(
     author_email='kitouni@gmail.com',
     license='BSD 2-clause',
     packages=['modeloss'],
-    install_requires= ['numpy','scipy'],
-    extras_require = {
-    'torch':  ['torch>=1.6.0'],
-    'tf': ['tensorflow>=2.2.0']
-    },
+    install_requires= ['numpy','scipy','torch>=1.6.0','tensorflow>=2.2.0'],
     python_requires='>=3.6',
     )

@@ -3,6 +3,7 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 from tensorflow.python.ops.math_ops import bucketize
 
+
 class MoDeLoss():
     def __init__(self,bins=32,sbins=32,memory=False,background_label=0,background_only=True,power=2,order=0,lambd=None,max_slope=None,monotonic=False,eps=1e-4,dynamicbins=True,normalize=True):
         """
@@ -269,9 +270,12 @@ class _LegendreFitter():
         return
 
 view = lambda x,shape: tf.reshape(x,shape)
+
 def _Heaviside(tensor):
     tensor = (tf.sign(tensor)+1.)*0.5
     return tensor
+
 def _expand_dims_as(t1,t2):
     result = t1[(...,)+(None,)*len(t2.get_shape().as_list())]
     return result
+
