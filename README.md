@@ -3,15 +3,15 @@ Moment Decorrelation (MoDe) is a tool that can enforce decorrelation between som
 
 For more details please see: https://arxiv.org/abs/2010.09745
 
-An implementation is available in each of TensorFlow and PyTorch. The Example.ipynb notebook illustrates how MoDe is used and shows how one can obtain different response functions on a toy example.
+An implementation is available in each of TensorFlow and PyTorch. The notebooks in [examples/](examples/) illustrate how MoDe is used and show how one can obtain different response functions on a toy example and on a W-tagging dataset.
 
-The PyTorch implementation requires PyTorch 1.6.0 or newer. 
-The TensorFlow implementation requires TensorFlow 2.2.0 or newer. 
 
 ## Installation 
 ```
 pip install modeloss
 ```
+The PyTorch implementation requires PyTorch 1.6.0 or newer. 
+The TensorFlow implementation requires TensorFlow 2.2.0 or newer. 
 
 ## Usage 
 For PyTorch:
@@ -25,7 +25,7 @@ loss = lambda pred,target,x_biased,weights: lambd * flatness_loss(pred,target,x_
 
 For TensorFlow, replace `modeloss.pytorch` above with `modeloss.tf`.
 ## Example 
-This is a toy example in which the signal (samples with label 1) is localized near the value 0.2 of the protected attribute *m*. While backgrounds (samples with label 0) are uniform in this feature, we note that this bias is introduced into any naive classifer. Indeed, we see that an unconstrained classifier (in the sense that it has no additional fairness regularization) has a large false positive rate for backgrounds near *m* = 0.2. Here we show how different MoDe regularizations (MoDe\[n\]) mitigate this bias by flattening the false positive rate as a function of the protected attribute *m*. 
+This is a toy example (located in [examples/WtagMoDe0Torch.ipynb](examples/WtagMoDe0Torch.ipynb)) in which the signal (samples with label 1) is localized near the value 0.2 of the protected attribute *m*. While backgrounds (samples with label 0) are uniform in this feature, we note that this bias is introduced into any naive classifer. Indeed, we see that an unconstrained classifier (in the sense that it has no additional fairness regularization) has a large false positive rate for backgrounds near *m* = 0.2. Here we show how different MoDe regularizations (MoDe\[n\]) mitigate this bias by flattening the false positive rate as a function of the protected attribute *m*. 
 
 
 <p align="center">
@@ -34,7 +34,7 @@ This is a toy example in which the signal (samples with label 1) is localized ne
 
 
 
-**Left**: The false positive rate versus mass for various models at true positive rate (TPR) 80, 50, 20% (each set of 3 identically colored and stylized lines correspond to the same model but with selection thresholds chosen to achieve the 3 desired TPRs). The bottom panel
+**Left**: The false positive rate versus mass for various models at signal efficiencies (or true positive rates (TPR)) ε = 80, 50, 20% (each set of 3 identically colored and stylized lines correspond to the same model but with selection thresholds chosen to achieve the 3 desired TPRs). The bottom panel
 shows that MoDe\[1\] and MoDe\[2\] completely overlap with the m-agnostic model for this simple
 example, which is expected because the optimal classifier here has linear dependence on mass (see paper). **Right**: ROC curves for MoDe\[0\], MoDe\[1\], and MoDe\[2\] compared to the *m*-agnostic
 model and a model with unconstrained mass dependence. As in the left panel, we see that `MoDe[1]`,
