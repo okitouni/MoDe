@@ -18,7 +18,7 @@ For PyTorch:
 ```
 from modeloss.pytorch import MoDeLoss
 
-flatness_loss = MoDeLoss(orde=0)
+flatness_loss = MoDeLoss(order=0)
 loss = lambda pred,target,x_biased,weights: lambd * flatness_loss(pred,target,x_biased,weights)+\
                                             classification_loss(pred,target,weights)
 ```
