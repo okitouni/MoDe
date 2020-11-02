@@ -6,7 +6,7 @@ For more details please see: https://arxiv.org/abs/2010.09745
 An implementation is available in each of TensorFlow and PyTorch. The Example.ipynb notebook illustrates how MoDe is used and shows how one can obtain different response functions on a toy example.
 
 The PyTorch implementation requires PyTorch 1.6.0 or newer. 
-The Tensorflow implementation requires Tensorflow 2.2.0 or newer. 
+The TensorFlow implementation requires TensorFlow 2.2.0 or newer. 
 
 ## Installation 
 ```
