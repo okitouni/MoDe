@@ -13,7 +13,7 @@ The Tensorflow implementation requires Tensorflow 2.2.0 or newer.
 pip install modeloss
 ```
 
-## Useage 
+## Usage 
 For PyTorch:
 ```
 from modeloss.pytorch import MoDeLoss
