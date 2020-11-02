@@ -23,4 +23,4 @@ loss = lambda pred,target,x_biased,weights: lambd * flatness_loss(pred,target,x_
                                             classification_loss(pred,target,weights)
 ```
 
-For TensorFlow, replace `modeloss.pytorch` above with `modeloss.tf`
+For TensorFlow, replace `modeloss.pytorch` above with `modeloss.tf`.
