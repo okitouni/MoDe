@@ -7,3 +7,19 @@ An implementation is available in each of TensorFlow and PyTorch. The Example.ip
 
 The PyTorch implementation requires PyTorch 1.6.0 or newer. 
 The Tensorflow implementation requires Tensorflow 2.2.0 or newer. 
+
+## Installation 
+'''
+pip install modeloss
+'''
+
+## Useage 
+For PyTorch
+'''
+from modeloss.pytorch import MoDeLoss
+
+flatness_loss = MoDeLoss(orde=0)
+loss = lambda pred,target,x_biased,weights: lambd * flatness_loss(pred,target,x_biased,weights) + classification_loss(pred,target,weights)
+'''
+
+For TensorFlow, replace ```modeloss.pytorch``` above with ```modeloss.tf```
