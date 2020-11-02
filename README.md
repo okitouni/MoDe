@@ -34,7 +34,7 @@ This is a toy example (located in [examples/WtagMoDe0Torch.ipynb](examples/WtagM
 
 
 
-**Left**: The false positive rate versus mass for various models at signal efficiencies (or true positive rates (TPR)) ε = 80, 50, 20% (each set of 3 identically colored and stylized lines correspond to the same model but with selection thresholds chosen to achieve the 3 desired TPRs). The bottom panel
+**Left**: The false positive rate versus mass (*m*) for various models at signal efficiencies (or true positive rates (TPR)) ε = 80, 50, 20% (each set of 3 identically colored and stylized lines correspond to the same model but with selection thresholds chosen to achieve the 3 desired TPRs). The bottom panel
 shows that MoDe\[1\] and MoDe\[2\] completely overlap with the m-agnostic model for this simple
 example, which is expected because the optimal classifier here has linear dependence on mass (see paper). **Right**: ROC curves for MoDe\[0\], MoDe\[1\], and MoDe\[2\] compared to the *m*-agnostic
 model and a model with unconstrained mass dependence. As in the left panel, we see that `MoDe[1]`,
