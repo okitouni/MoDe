@@ -25,7 +25,7 @@ loss = lambda pred,target,m,weights: lambd * flatness_loss(pred,target,m,weights
 
 For TensorFlow, replace `modeloss.pytorch` above with `modeloss.tf`.
 ## Example 
-This is a toy example (located in [examples/ToyExampleTF.ipynb](examples/ToyExampleTF.ipynb)) in which the signal (samples with label 1) is localized near the value 0.2 of the protected attribute *m*. While backgrounds (samples with label 0) are uniform in this feature, we note that this bias is introduced into any naive classifer. Indeed, we see that an unconstrained classifier (in the sense that it has no additional fairness regularization) has a large false positive rate for backgrounds near *m* = 0.2. Here we show how different MoDe regularizations (MoDe\[n\]) mitigate this bias by flattening the false positive rate as a function of the protected attribute *m*. 
+This is a toy example (located in [examples/ToyExampleTF.ipynb](examples/ToyExampleTF.ipynb)) in which the signal (samples with label 1) is localized near the value 0.2 of the protected attribute *m*. While backgrounds (samples with label 0) are uniform in this feature, we note that this bias is introduced into any naive classifer. Indeed, we see that an unconstrained classifier (in the sense that it has no additional fairness regularization) has a large false positive rate for backgrounds near *m* = 0.2. Here we show how different MoDe regularizations (MoDe\[n\]) mitigate this bias by flattening the false positive rate as a function of the protected attribute *m* into its n'th legendre decomposition (where n is the highest moment allowed; 0 is flat, 1 is linear, etc) . 
 
 
 <p align="center">
